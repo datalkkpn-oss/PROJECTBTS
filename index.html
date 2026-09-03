@@ -24,7 +24,11 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
+
     <script
+      const
+      API_URL="https://blue-turtle-squad.marissacitra5.workers.dev"
+      ;
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
@@ -3569,12 +3573,13 @@
 
       let selectedCategory = "super_admin";
 
-      document.addEventListener("DOMContentLoaded", () => {
+      document.addEventListener("DOMContentLoaded", async () => {
         lucide.createIcons();
         initNav();
         initMap();
         initChart();
         syncUI();
+        await loadPendaratanFromAPI();
       });
 
       // --- Navigation ---
@@ -3952,11 +3957,38 @@
           ["admin", "super_admin", "pendata"].includes(currentUser.role)
         );
       }
+async function loadPendaratanFromAPI() {
+  try {
+    const [pendaratanRes, adopsiRes] = await Promise.all([
+      fetch("https://blue-turtle-squad.marissacitra5.workers.dev/api/pendaratan"),
+      fetch("https://blue-turtle-squad.marissacitra5.workers.dev/api/adopsi")
+    ]);
 
-      function renderPendaratan() {
-        const list =
-          JSON.parse(localStorage.getItem("bts_pendaratan")) || SEED_PENDARATAN;
-        const search = document
+    const pendaratanResult = await pendaratanRes.json();
+    const adopsiResult = await adopsiRes.json();
+
+    if (!pendaratanResult.success) {
+      throw new Error("Gagal mengambil data pendaratan");
+    }
+
+    if (!adopsiResult.success) {
+      throw new Error("Gagal mengambil data adopsi");
+    }
+
+    dataPendaratan = pendaratanResult.data || [];
+    dataAdopsi = adopsiResult.data || [];
+
+    renderPendaratan();
+    populateAdopsiSarangSelect();
+
+  } catch (error) {
+    console.error("Gagal mengambil data:", error);
+    alert("Gagal mengambil data pendaratan dari server.");
+  }
+}
+
+function renderPendaratan() {
+  const list = dataPendaratan;        const search = document
           .getElementById("searchKode")
           .value.toLowerCase();
         const fLoc = document.getElementById("filterLoc").value.toLowerCase();
@@ -3982,10 +4014,15 @@
           const badge = p.jenis_penyu.includes("Sisik")
             ? "badge-sisik"
             : "badge-hijau";
-          const adopted =
-            p.status_adopsi === "Sudah Diadopsi" || !!p.nama_adopter;
-          const statusHtml = adopted
-            ? `<span class="status-adopsi sudah">Sudah Diadopsi<small>${p.nama_adopter || "-"}</small></span>`
+const adopsi = dataAdopsi.find(
+  (a) => a.kode_sarang === p.kode_sarang
+);
+
+const adopted = !!adopsi;
+const namaAdopter = adopsi ? adopsi.nama_adopter : "";
+
+const statusHtml = adopted
+            ? `<span class="status-adopsi sudah">Sudah Diadopsi<small>${namaAdopter}</small></span>`
             : `<span class="status-adopsi belum">Belum Diadopsi</span>`;
 
           let actionHtml = statusHtml;
